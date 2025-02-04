@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>reduce</title>
+</head>
+<body>
+    
+</body>
+<script>
+    let A = [1,2,3,4];
+
+    A.reduce((a,b) => {
+        console.log(a,b);
+
+        return a + b;
+    });
+
+    function M1(a){
+        console.log('M1')
+        return a;
+    }
+
+    function M2(b){
+        console.log('M2')
+        return b;
+    }
+
+    function M3(c){
+        console.log('M3')
+        return c;
+    }
+
+    //合并三个方法，前一个方法的输出当做后一个方法的输入；
+
+    const compose = (...args) => {
+        return args.reduce((a,b)=>{
+            return (arg) =>{
+                return a(b(arg))
+            }
+        })
+    }
+
+    console.log(compose(M1,M2,M3)(123))
+</script>
+</html>
