@@ -3,12 +3,86 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-<title>说3388明</title>
+<title>视频播放与下载</title>
 <meta name="description" content="">
 <meta name="keywords" content="">
-<link href="" rel="stylesheet">
+<style>
+    .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .video-container {
+        margin-bottom: 20px;
+    }
+    .controls {
+        margin-top: 10px;
+    }
+    button {
+        padding: 8px 16px;
+        margin-right: 10px;
+        cursor: pointer;
+    }
+    #videoUrl {
+        width: 70%;
+        padding: 8px;
+        margin-right: 10px;
+    }
+</style>
 </head>
 <body>
-    <p>gitte222st</p>
+    <div class="container">
+        <h1>视频播放与下载</h1>
+        <div class="video-container">
+            <input type="text" id="videoUrl" placeholder="输入视频URL">
+            <button onclick="loadVideo()">加载视频</button>
+        </div>
+        <video id="videoPlayer" controls width="100%" height="100%" src="https://v3-web.douyinvod.com/ec6e181d1f535782624ef5c5edf5ad4f/682caa07/video/tos/cn/tos-cn-ve-15/ooKxNFDf9AA3MIHFvUEQR8BA4glgSzCdKofYEh/?a=6383&ch=26&cr=3&dr=0&lr=all&cd=0%7C0%7C0%7C3&cv=1&br=556&bt=556&cs=2&ds=3&ft=AJkeU_TERR0sWrC12D12Nc0iPMgzbLmBjTdU_4SuHr2JNv7TGW&mime_type=video_mp4&qs=15&rc=Zjs1O2dmOTs5NDNlZ2ZkNkBpMzV1ZHM5cjRkMzMzNGkzM0AvMDEyY2EwNi0xLi8uLTQvYSMzMjJwMmRjcmhhLS1kLWFzcw%3D%3D&btag=80000e00010000&dy_q=1747746760&feature_id=9f9b2867559c3a5561ecc017f1d468f2&l=2025052021124072E8A31F4FBB200F1B12&__vid=7505439512198122815">
+            您的浏览器不支持 HTML5 视频播放
+        </video>
+        <div class="controls">
+            <button onclick="downloadVideo()">下载视频</button>
+        </div>
+    </div>
+
+    <script>
+        // 加载视频
+        function loadVideo() {
+            const videoUrl = document.getElementById('videoUrl').value;
+            const videoPlayer = document.getElementById('videoPlayer');
+            
+            if (!videoUrl) {
+                alert('请输入视频URL');
+                return;
+            }
+
+            videoPlayer.src = videoUrl;
+            videoPlayer.load();
+        }
+
+        // 下载视频
+        function downloadVideo() {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const videoUrl = videoPlayer.src;
+
+            if (!videoUrl) {
+                alert('请先加载视频');
+                return;
+            }
+
+            // 创建一个隐藏的下载链接
+            const downloadLink = document.createElement('a');
+            downloadLink.href = videoUrl;
+            downloadLink.download = 'video_' + new Date().getTime() + '.mp4';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        // 监听视频加载错误
+        document.getElementById('videoPlayer').addEventListener('error', function(e) {
+            alert('视频加载失败，请检查URL是否正确');
+        });
+    </script>
 </body>
 </html>
