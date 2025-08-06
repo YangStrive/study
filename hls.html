@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>M3U8 视频播放器</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: #333;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        font-weight: 300;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .control-panel {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .input-group input {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+
+      .input-group input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .video-container {
+        position: relative;
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+
+      video {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .status {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 8px;
+        font-weight: 500;
+      }
+
+      .status.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .status.info {
+        background: #cce7ff;
+        color: #004085;
+        border: 1px solid #b8daff;
+      }
+
+      .demo-urls {
+        margin-top: 20px;
+      }
+
+      .demo-urls h3 {
+        margin-bottom: 10px;
+        color: #667eea;
+      }
+
+      .demo-url {
+        display: block;
+        margin: 5px 0;
+        padding: 8px 12px;
+        background: #e9ecef;
+        border-radius: 5px;
+        text-decoration: none;
+        color: #495057;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .demo-url:hover {
+        background: #dee2e6;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+      }
+
+      .loading::after {
+        content: "";
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .debug-info {
+        margin-top: 10px;
+        padding: 10px;
+        background: #1a1a1a;
+        color: #00ff00;
+        border-radius: 5px;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #333;
+      }
+
+      .tips {
+        margin-top: 20px;
+        padding: 15px;
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        color: #856404;
+      }
+
+      .tips h4 {
+        margin-top: 0;
+        color: #856404;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🎬 M3U8 视频播放器</h1>
+        <p>基于 HLS.js 的现代化视频播放解决方案</p>
+      </div>
+
+      <div class="content">
+        <div class="control-panel">
+          <div class="input-group">
+            <input
+              type="url"
+              id="urlInput"
+              placeholder="请输入 M3U8 视频链接..."
+            />
+            <button class="btn" onclick="loadVideo()">播放视频</button>
+          </div>
+
+          <div class="demo-urls">
+            <h3>📺 示例视频链接</h3>
+            <a
+              class="demo-url"
+              onclick="loadDemoUrl(this)"
+              data-url="https://record-api.huohua.cn/content/CR250724948518/stream/teacher/desktop.m3u8"
+            >
+              🎯 你的测试视频 - 不连续流
+            </a>
+            <a
+              class="demo-url"
+              onclick="loadDemoUrl(this)"
+              data-url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+            >
+              Big Buck Bunny - 测试视频
+            </a>
+            <a
+              class="demo-url"
+              onclick="loadDemoUrl(this)"
+              data-url="https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8"
+            >
+              Sintel - 开源动画电影
+            </a>
+            <a
+              class="demo-url"
+              onclick="loadDemoUrl(this)"
+              data-url="https://multiplatform-f.akamaihd.net/i/multi/will/bunny/big_buck_bunny_,640x360_400,640x360_700,640x360_1000,950x540_1500,.f4v.csmil/master.m3u8"
+            >
+              Big Buck Bunny - 多码率自适应
+            </a>
+            <a
+              class="demo-url"
+              onclick="loadDemoUrl(this)"
+              data-url="./vid.m3u8"
+              >333</a
+            >
+          </div>
+        </div>
+
+        <div class="video-container">
+          <video id="videoPlayer" controls muted>
+            <p>您的浏览器不支持视频播放。</p>
+          </video>
+          <div id="loading" class="loading hidden">正在加载视频...</div>
+        </div>
+
+        <div id="status" class="status hidden"></div>
+
+        <div class="tips">
+          <h4>💡 播放提示</h4>
+          <p><strong>针对不连续流视频（如你的测试视频）：</strong></p>
+          <ul>
+            <li>如果遇到 "bufferAppendingError" 错误，播放器会自动尝试修复</li>
+            <li>不连续流可能在分段切换时有短暂停顿，这是正常现象</li>
+            <li>建议使用 Chrome 或 Firefox 浏览器以获得最佳体验</li>
+            <li>如果播放异常，请查看浏览器控制台（F12）获取详细调试信息</li>
+          </ul>
+          <p><strong>调试技巧：</strong></p>
+          <ul>
+            <li>按 F12 打开开发者工具查看详细日志</li>
+            <li>播放过程中会自动输出调试信息到控制台</li>
+            <li>支持多种错误自动恢复机制</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 引入最新的 HLS.js -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.7"></script>
+
+    <script>
+      let hls = null;
+      const video = document.getElementById("videoPlayer");
+      const urlInput = document.getElementById("urlInput");
+      const statusDiv = document.getElementById("status");
+      const loadingDiv = document.getElementById("loading");
+
+      // 显示状态信息
+      function showStatus(message, type = "info") {
+        statusDiv.textContent = message;
+        statusDiv.className = `status ${type}`;
+        statusDiv.classList.remove("hidden");
+
+        if (type === "success") {
+          setTimeout(() => {
+            statusDiv.classList.add("hidden");
+          }, 3000);
+        }
+      }
+
+      // 显示/隐藏加载状态
+      function showLoading(show) {
+        if (show) {
+          loadingDiv.classList.remove("hidden");
+        } else {
+          loadingDiv.classList.add("hidden");
+        }
+      }
+
+      // 加载视频
+      function loadVideo() {
+        const url = urlInput.value.trim();
+
+        if (!url) {
+          showStatus("请输入有效的 M3U8 视频链接", "error");
+          return;
+        }
+
+        // 验证URL格式
+        if (!isValidM3U8Url(url)) {
+          showStatus("请输入有效的 M3U8 格式视频链接", "error");
+          return;
+        }
+
+        showLoading(true);
+        showStatus("正在加载视频...", "info");
+
+        // 清理之前的 HLS 实例
+        if (hls) {
+          hls.destroy();
+        }
+
+        // 检查浏览器支持
+        if (Hls.isSupported()) {
+          hls = new Hls({
+            debug: false,
+            enableWorker: true,
+            lowLatencyMode: false, // 关闭低延迟模式，提高兼容性
+            backBufferLength: 90,
+            // 针对不连续流的配置优化
+            maxBufferLength: 30,
+            maxBufferSize: 60 * 1000 * 1000, // 60MB
+            maxBufferHole: 0.3,
+            highBufferWatchdogPeriod: 3,
+            // 分段加载配置
+            maxLoadingDelay: 4,
+            maxFragLookUpTolerance: 0.25,
+            // 错误重试配置
+            fragLoadingTimeOut: 20000,
+            fragLoadingMaxRetry: 6,
+            fragLoadingRetryDelay: 1000,
+            // 媒体源配置
+            appendErrorMaxRetry: 3,
+            // 关键：启用更宽松的分段处理
+            enableSoftwareAES: true,
+            // 针对不连续流的特殊配置
+            forceKeyFrameOnDiscontinuity: true,
+          });
+
+          hls.loadSource(url);
+          hls.attachMedia(video);
+
+          hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            showLoading(false);
+            showStatus("视频加载成功！", "success");
+            console.log("视频清晰度选项:", hls.levels);
+          });
+
+          // 添加更多有用的事件监听
+          hls.on(Hls.Events.FRAG_LOADING, function (event, data) {
+            console.log("正在加载分段:", data.frag.url);
+          });
+
+          hls.on(Hls.Events.FRAG_LOADED, function (event, data) {
+            console.log("分段加载完成:", data.frag.url);
+          });
+
+          hls.on(Hls.Events.BUFFER_APPENDING, function (event, data) {
+            console.log("正在追加缓冲区数据...");
+          });
+
+          hls.on(Hls.Events.BUFFER_APPENDED, function (event, data) {
+            console.log("缓冲区数据追加完成");
+          });
+
+          hls.on(Hls.Events.BUFFER_EOS, function (event, data) {
+            console.log("缓冲区结束");
+          });
+
+          // 监听不连续点处理
+          hls.on(Hls.Events.LEVEL_SWITCHING, function (event, data) {
+            console.log("切换清晰度:", data.level);
+          });
+
+          hls.on(Hls.Events.ERROR, function (event, data) {
+            console.error("HLS 错误:", data);
+
+            if (data.fatal) {
+              showLoading(false);
+              switch (data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  showStatus(
+                    "网络错误：无法加载视频，请检查网络连接或视频链接",
+                    "error"
+                  );
+                  // 尝试重新加载
+                  setTimeout(() => {
+                    if (hls) {
+                      hls.startLoad();
+                    }
+                  }, 1000);
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  showStatus("媒体错误：正在尝试恢复播放...", "info");
+                  // 尝试媒体错误恢复
+                  try {
+                    hls.recoverMediaError();
+                    showStatus("错误恢复成功，继续播放", "success");
+                  } catch (e) {
+                    showStatus("媒体错误：视频格式不受支持或文件损坏", "error");
+                  }
+                  break;
+                default:
+                  showStatus("播放错误：" + data.details, "error");
+                  break;
+              }
+            } else {
+              // 处理非致命错误
+              switch (data.details) {
+                case "bufferAppendingError":
+                  showStatus("缓冲错误：正在尝试修复...", "info");
+                  // 清理缓冲区并重试
+                  setTimeout(() => {
+                    if (hls && video.buffered.length > 0) {
+                      try {
+                        hls.recoverMediaError();
+                        showStatus("缓冲错误已修复", "success");
+                      } catch (e) {
+                        console.warn("媒体错误恢复失败:", e);
+                      }
+                    }
+                  }, 500);
+                  break;
+                case "bufferSeeking":
+                  showStatus("正在缓冲...", "info");
+                  break;
+                case "bufferStalled":
+                  showStatus("播放暂停：正在加载更多数据...", "info");
+                  break;
+                default:
+                  console.warn("HLS 警告:", data.details);
+                  break;
+              }
+            }
+          });
+
+          // 监听播放状态
+          video.addEventListener("loadstart", () => {
+            showStatus("开始加载视频...", "info");
+          });
+
+          video.addEventListener("canplay", () => {
+            showStatus("视频准备就绪", "success");
+          });
+
+          video.addEventListener("error", (e) => {
+            showLoading(false);
+            showStatus("视频播放错误：" + e.message, "error");
+          });
+        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          // Safari 原生支持
+          video.src = url;
+          showLoading(false);
+          showStatus("使用 Safari 原生播放器（更好的兼容性）", "success");
+        } else {
+          // 最后的备用方案：尝试直接设置src
+          showStatus("浏览器不支持HLS.js，尝试原生播放...", "info");
+          video.src = url;
+          video.addEventListener("loadedmetadata", function () {
+            showLoading(false);
+            showStatus("使用原生播放器成功", "success");
+          });
+          video.addEventListener("error", function () {
+            showLoading(false);
+            showStatus(
+              "您的浏览器不支持 HLS 播放，建议使用Chrome或Firefox",
+              "error"
+            );
+          });
+        }
+      }
+
+      // 验证 M3U8 URL
+      function isValidM3U8Url(url) {
+        try {
+          const urlObj = new URL(url);
+          return (
+            urlObj.pathname.endsWith(".m3u8") ||
+            urlObj.pathname.includes(".m3u8") ||
+            url.includes("m3u8")
+          );
+        } catch {
+          return false;
+        }
+      }
+
+      // 加载示例URL
+      function loadDemoUrl(element) {
+        const url = element.dataset.url;
+        urlInput.value = url;
+        loadVideo();
+      }
+
+      // 回车键快速播放
+      urlInput.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+          loadVideo();
+        }
+      });
+
+      // 页面卸载时清理资源
+      window.addEventListener("beforeunload", function () {
+        if (hls) {
+          hls.destroy();
+        }
+      });
+
+      // 初始化提示
+      showStatus("请输入 M3U8 视频链接或选择示例视频开始播放", "info");
+
+      // 添加调试信息显示
+      function showDebugInfo() {
+        if (hls) {
+          console.log("=== HLS 播放器状态 ===");
+          console.log("当前加载状态:", hls.loadLevel);
+          console.log("可用清晰度:", hls.levels);
+          console.log("当前播放清晰度:", hls.currentLevel);
+          console.log("缓冲区信息:", {
+            buffered: video.buffered,
+            currentTime: video.currentTime,
+            duration: video.duration,
+          });
+          console.log("播放器配置:", hls.config);
+          console.log("====================");
+        }
+      }
+
+      // 每5秒输出一次调试信息（仅在控制台可见）
+      setInterval(showDebugInfo, 5000);
+
+      // 添加键盘快捷键支持
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "F12" || (e.ctrlKey && e.shiftKey && e.key === "I")) {
+          // 当开发者工具打开时，显示详细调试信息
+          setTimeout(showDebugInfo, 500);
+        }
+      });
+    </script>
+  </body>
+</html>

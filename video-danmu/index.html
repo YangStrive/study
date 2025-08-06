@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>视频弹幕Demo</title>
+    <!-- 引入hls.js支持m3u8格式 -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background: #1a1a1a;
+        color: #fff;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .video-container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        background: #000;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .video-wrapper {
+        position: relative;
+        width: 100%;
+        height: 450px;
+      }
+
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .danmu-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .danmu-item {
+        position: absolute;
+        white-space: nowrap;
+        font-size: 16px;
+        color: #fff;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        animation: danmu-move 10s linear infinite;
+        z-index: 10;
+      }
+
+      @keyframes danmu-move {
+        0% {
+          transform: translateX(100%);
+        }
+        100% {
+          transform: translateX(-100%);
+        }
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 20px;
+        background: rgba(0, 0, 0, 0.8);
+      }
+
+      .play-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        background: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.3s;
+      }
+
+      .btn:hover {
+        background: #45a049;
+      }
+
+      .btn:disabled {
+        background: #666;
+        cursor: not-allowed;
+      }
+
+      .time-display {
+        font-size: 14px;
+        color: #ccc;
+      }
+
+      .progress-bar {
+        flex: 1;
+        height: 4px;
+        background: #333;
+        border-radius: 2px;
+        margin: 0 15px;
+        cursor: pointer;
+        position: relative;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: #4caf50;
+        border-radius: 2px;
+        width: 0%;
+        transition: width 0.1s;
+      }
+
+      .danmu-input-area {
+        margin-top: 20px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+      }
+
+      .danmu-input-container {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .danmu-input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #555;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        font-size: 14px;
+      }
+
+      .danmu-input::placeholder {
+        color: #aaa;
+      }
+
+      .danmu-input:focus {
+        outline: none;
+        border-color: #4caf50;
+      }
+
+      .color-picker {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+
+      .color-option {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: border-color 0.3s;
+      }
+
+      .color-option.active {
+        border-color: #4caf50;
+      }
+
+      .title {
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 28px;
+        color: #4caf50;
+      }
+
+      .mock-info {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #aaa;
+        font-size: 14px;
+      }
+
+      .video-source-selector select,
+      .video-source-selector input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #555;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        font-size: 14px;
+      }
+
+      .video-source-selector select:focus,
+      .video-source-selector input:focus {
+        outline: none;
+        border-color: #4caf50;
+      }
+
+      .video-source-selector select option {
+        background: #333;
+        color: #fff;
+      }
+
+      .video-source-selector {
+        margin-bottom: 15px;
+      }
+
+      .source-label {
+        display: block;
+        margin-bottom: 8px;
+        color: #ccc;
+        font-size: 14px;
+      }
+
+      .custom-url-input {
+        margin-top: 8px;
+        display: none;
+      }
+
+      .load-video-btn {
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="title">视频弹幕Demo</h1>
+      <div class="mock-info">
+        支持MP4/M3U8格式视频 - 播放/暂停、发布弹幕功能
+      </div>
+
+      <div class="video-container">
+        <div class="video-wrapper">
+          <video id="mainVideo" preload="metadata">
+            <source
+              src="https://www.w3schools.com/html/mov_bbb.mp4"
+              type="video/mp4"
+            />
+            你的浏览器不支持视频标签。
+          </video>
+          <div class="danmu-container" id="danmuContainer"></div>
+        </div>
+
+        <div class="controls">
+          <div class="play-controls">
+            <button class="btn" id="playBtn">播放</button>
+            <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
+          </div>
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="danmu-input-area">
+        <div class="video-source-selector">
+          <label class="source-label">视频源选择:</label>
+          <select id="videoSourceSelect">
+            <option value="https://www.w3schools.com/html/mov_bbb.mp4">
+              默认MP4视频
+            </option>
+            <option
+              value="https://d2zihajmogu5jn.cloudfront.net/bipbop-advanced/bipbop_16x9_variant.m3u8"
+            >
+              测试M3U8视频
+            </option>
+            <option
+              value="https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8"
+            >
+              HLS示例视频
+            </option>
+            <option
+              value="https://record-api.huohua.cn/content/CR230716387093/stream/teacher/desktop.m3u8"
+            >
+              HLS示例视频
+            </option>
+            <option value="custom">自定义URL</option>
+          </select>
+          <input
+            type="text"
+            id="customVideoUrl"
+            placeholder="输入自定义视频URL..."
+            class="custom-url-input"
+          />
+          <button class="btn load-video-btn" id="loadVideoBtn">加载视频</button>
+        </div>
+
+        <div class="danmu-input-container">
+          <input
+            type="text"
+            class="danmu-input"
+            id="danmuInput"
+            placeholder="输入弹幕内容..."
+            maxlength="50"
+          />
+          <div class="color-picker">
+            <div
+              class="color-option active"
+              style="background-color: #fff"
+              data-color="#fff"
+            ></div>
+            <div
+              class="color-option"
+              style="background-color: #ff4444"
+              data-color="#ff4444"
+            ></div>
+            <div
+              class="color-option"
+              style="background-color: #44ff44"
+              data-color="#44ff44"
+            ></div>
+            <div
+              class="color-option"
+              style="background-color: #4444ff"
+              data-color="#4444ff"
+            ></div>
+            <div
+              class="color-option"
+              style="background-color: #ffff44"
+              data-color="#ffff44"
+            ></div>
+            <div
+              class="color-option"
+              style="background-color: #ff44ff"
+              data-color="#ff44ff"
+            ></div>
+          </div>
+          <button class="btn" id="sendBtn">发送</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      class DanmuPlayer {
+        constructor() {
+          this.video = document.getElementById("mainVideo");
+          this.danmuContainer = document.getElementById("danmuContainer");
+          this.playBtn = document.getElementById("playBtn");
+          this.timeDisplay = document.getElementById("timeDisplay");
+          this.progressBar = document.getElementById("progressBar");
+          this.progressFill = document.getElementById("progressFill");
+          this.danmuInput = document.getElementById("danmuInput");
+          this.sendBtn = document.getElementById("sendBtn");
+          this.colorOptions = document.querySelectorAll(".color-option");
+          this.videoSourceSelect = document.getElementById("videoSourceSelect");
+          this.customVideoUrl = document.getElementById("customVideoUrl");
+          this.loadVideoBtn = document.getElementById("loadVideoBtn");
+
+          this.selectedColor = "#fff";
+          this.danmuData = [];
+          this.activeDanmus = [];
+          this.hls = null;
+
+          this.init();
+          this.loadMockData();
+          this.setupHLS();
+        }
+
+        init() {
+          // 播放/暂停按钮事件
+          this.playBtn.addEventListener("click", () => this.togglePlay());
+
+          // 视频事件监听
+          this.video.addEventListener("loadedmetadata", () =>
+            this.updateTimeDisplay()
+          );
+          this.video.addEventListener("timeupdate", () => {
+            this.updateTimeDisplay();
+            this.updateProgress();
+            this.checkDanmuTrigger();
+          });
+
+          // 进度条点击事件
+          this.progressBar.addEventListener("click", (e) => this.seekVideo(e));
+
+          // 弹幕发送事件
+          this.sendBtn.addEventListener("click", () => this.sendDanmu());
+          this.danmuInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") this.sendDanmu();
+          });
+
+          // 颜色选择事件
+          this.colorOptions.forEach((option) => {
+            option.addEventListener("click", () => this.selectColor(option));
+          });
+
+          // 视频源选择事件
+          this.videoSourceSelect.addEventListener("change", () =>
+            this.handleVideoSourceChange()
+          );
+          this.loadVideoBtn.addEventListener("click", () =>
+            this.handleLoadVideo()
+          );
+        }
+
+        loadMockData() {
+          // Mock弹幕数据
+          this.danmuData = [
+            { time: 5, text: "开始了！", color: "#fff" },
+            { time: 10, text: "好精彩啊！", color: "#ff4444" },
+            { time: 15, text: "哈哈哈哈", color: "#44ff44" },
+            { time: 20, text: "不错不错", color: "#4444ff" },
+            { time: 25, text: "期待后续", color: "#ffff44" },
+            { time: 30, text: "太棒了！", color: "#ff44ff" },
+            { time: 35, text: "赞赞赞", color: "#fff" },
+            { time: 40, text: "继续加油", color: "#ff4444" },
+            { time: 45, text: "精彩继续", color: "#44ff44" },
+            { time: 50, text: "完美结束", color: "#4444ff" },
+          ];
+        }
+
+        togglePlay() {
+          if (this.video.paused) {
+            this.video.play();
+            this.playBtn.textContent = "暂停";
+          } else {
+            this.video.pause();
+            this.playBtn.textContent = "播放";
+          }
+        }
+
+        updateTimeDisplay() {
+          const current = this.formatTime(this.video.currentTime);
+          const duration = this.formatTime(this.video.duration || 0);
+          this.timeDisplay.textContent = `${current} / ${duration}`;
+        }
+
+        updateProgress() {
+          console.log(this.video.currentTime, this.video.duration);
+          console.log(this.video.buffered);
+          if (this.video.duration) {
+            const progress =
+              (this.video.currentTime / this.video.duration) * 100;
+            this.progressFill.style.width = `${progress}%`;
+          }
+        }
+
+        seekVideo(e) {
+          if (this.video.duration) {
+            const rect = this.progressBar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const progress = clickX / rect.width;
+            this.video.currentTime = progress * this.video.duration;
+          }
+        }
+
+        formatTime(seconds) {
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60);
+          return `${mins.toString().padStart(2, "0")}:${secs
+            .toString()
+            .padStart(2, "0")}`;
+        }
+
+        checkDanmuTrigger() {
+          const currentTime = this.video.currentTime;
+
+          // 检查是否有弹幕需要显示
+          this.danmuData.forEach((danmu, index) => {
+            if (Math.abs(currentTime - danmu.time) < 0.5 && !danmu.displayed) {
+              this.showDanmu(danmu.text, danmu.color);
+              danmu.displayed = true;
+            }
+          });
+
+          // 重置已显示状态（当视频重新播放时）
+          if (currentTime < 1) {
+            this.danmuData.forEach((danmu) => {
+              danmu.displayed = false;
+            });
+          }
+        }
+
+        showDanmu(text, color = "#fff") {
+          const danmuElement = document.createElement("div");
+          danmuElement.className = "danmu-item";
+          danmuElement.textContent = text;
+          danmuElement.style.color = color;
+
+          // 随机垂直位置
+          const containerHeight = this.danmuContainer.offsetHeight;
+          const randomTop = Math.random() * (containerHeight - 30);
+          danmuElement.style.top = `${randomTop}px`;
+
+          this.danmuContainer.appendChild(danmuElement);
+
+          // 动画结束后移除元素
+          setTimeout(() => {
+            if (danmuElement.parentNode) {
+              danmuElement.parentNode.removeChild(danmuElement);
+            }
+          }, 10000);
+        }
+
+        sendDanmu() {
+          const text = this.danmuInput.value.trim();
+          if (!text) return;
+
+          // 添加到当前时间的弹幕数据
+          const currentTime = this.video.currentTime;
+          this.danmuData.push({
+            time: currentTime,
+            text: text,
+            color: this.selectedColor,
+            displayed: false,
+          });
+
+          // 立即显示弹幕
+          this.showDanmu(text, this.selectedColor);
+
+          // 清空输入框
+          this.danmuInput.value = "";
+
+          console.log("弹幕发送成功:", {
+            text,
+            color: this.selectedColor,
+            time: currentTime,
+          });
+        }
+
+        selectColor(option) {
+          // 移除所有active类
+          this.colorOptions.forEach((opt) => opt.classList.remove("active"));
+
+          // 添加active类到选中的颜色
+          option.classList.add("active");
+          this.selectedColor = option.dataset.color;
+        }
+
+        setupHLS() {
+          // 检查是否支持HLS
+          if (typeof Hls !== "undefined") {
+            if (Hls.isSupported()) {
+              // 创建HLS实例并配置优化参数
+              this.hls = this.createHLSInstance();
+              this.setupHLSEvents();
+              console.log("HLS支持已启用，已配置优化参数");
+            } else {
+              console.warn("当前浏览器不支持HLS.js");
+            }
+          } else {
+            console.warn("HLS.js库未加载");
+          }
+
+          // 加载默认视频
+          const defaultVideoUrl = this.videoSourceSelect.value;
+          if (defaultVideoUrl && defaultVideoUrl !== "custom") {
+            this.loadVideo(defaultVideoUrl);
+          }
+        }
+
+        loadVideo(videoUrl) {
+          if (!videoUrl) return;
+
+          console.log("开始加载视频:", videoUrl);
+
+          // 清理之前的缓存状态监控
+          this.cleanupPreviousVideo();
+
+          // 检查是否为m3u8格式
+          if (videoUrl.includes(".m3u8")) {
+            if (this.hls && Hls.isSupported()) {
+              // 如果已经加载了视频，先销毁
+              if (this.hls.media) {
+                this.hls.destroy();
+                // 重新创建实例并配置
+                this.hls = this.createHLSInstance();
+              }
+
+              // 重新设置事件监听
+              this.setupHLSEvents();
+
+              // 加载m3u8视频
+              this.hls.loadSource(videoUrl);
+              this.hls.attachMedia(this.video);
+
+              console.log("HLS视频开始加载，已配置优化参数");
+            } else if (
+              this.video.canPlayType("application/vnd.apple.mpegurl")
+            ) {
+              // Safari原生支持HLS
+              this.video.src = videoUrl;
+              console.log("使用Safari原生HLS支持");
+            } else {
+              alert(
+                "当前浏览器不支持HLS视频格式，请使用Chrome、Firefox等支持HLS.js的浏览器"
+              );
+            }
+          } else {
+            // 普通MP4等格式
+            this.video.src = videoUrl;
+            console.log("加载普通视频格式");
+          }
+
+          // 重置播放按钮状态
+          this.playBtn.textContent = "播放";
+        }
+
+        cleanupPreviousVideo() {
+          // 清理缓存状态监控
+          if (this.bufferStatusInterval) {
+            clearInterval(this.bufferStatusInterval);
+            this.bufferStatusInterval = null;
+          }
+
+          // 移除缓存状态显示
+          const statusElement = document.getElementById("buffer-status");
+          if (statusElement) {
+            statusElement.remove();
+          }
+
+          // 清理HLS实例的所有事件监听器
+          if (this.hls) {
+            this.hls.off(Hls.Events.MANIFEST_PARSED);
+            this.hls.off(Hls.Events.FRAG_LOADING);
+            this.hls.off(Hls.Events.FRAG_LOADED);
+            this.hls.off(Hls.Events.FRAG_PARSED);
+            this.hls.off(Hls.Events.LEVEL_SWITCHING);
+            this.hls.off(Hls.Events.BUFFER_APPENDED);
+            this.hls.off(Hls.Events.ERROR);
+            this.hls.off(Hls.Events.BUFFER_FLUSHED);
+          }
+        }
+
+        handleVideoSourceChange() {
+          const selectedValue = this.videoSourceSelect.value;
+          if (selectedValue === "custom") {
+            this.customVideoUrl.style.display = "block";
+          } else {
+            this.customVideoUrl.style.display = "none";
+            // 当切换到预设视频时，自动加载
+            this.loadVideo(selectedValue);
+          }
+        }
+
+        handleLoadVideo() {
+          const selectedValue = this.videoSourceSelect.value;
+          let videoUrl = "";
+
+          if (selectedValue === "custom") {
+            videoUrl = this.customVideoUrl.value.trim();
+            if (!videoUrl) {
+              alert("请输入自定义视频URL");
+              return;
+            }
+          } else {
+            videoUrl = selectedValue;
+          }
+
+          console.log("正在加载视频:", videoUrl);
+          this.loadVideo(videoUrl);
+
+          // 重置弹幕状态
+          this.danmuData.forEach((danmu) => {
+            danmu.displayed = false;
+          });
+
+          // 清空当前弹幕
+          this.danmuContainer.innerHTML = "";
+        }
+
+        createHLSInstance() {
+          return new Hls({
+            // 缓存配置 - 关键优化参数
+            maxBufferLength: 30, // 最大缓存30秒
+            maxBufferSize: 60 * 1000 * 1000, // 最大缓存60MB
+            maxBufferHole: 0.5, // 最大缓存空洞0.5秒
+
+            // 预加载配置
+            maxMaxBufferLength: 60, // 最大最大缓存60秒
+            startLevel: -1, // 自动选择起始质量
+
+            // 网络优化
+            manifestLoadingTimeOut: 10000, // 播放列表加载超时
+            manifestLoadingMaxRetry: 3, // 最大重试次数
+            levelLoadingTimeOut: 10000, // 片段加载超时
+            levelLoadingMaxRetry: 3, // 片段最大重试次数
+
+            // 缓存策略
+            liveSyncDurationCount: 3, // 直播同步片段数
+            liveMaxLatencyDurationCount: 10, // 最大延迟片段数
+
+            // 性能优化
+            enableWorker: true, // 启用Web Worker
+            enableSoftwareAES: true, // 启用软件AES解密
+
+            // 调试信息
+            debug: false,
+          });
+        }
+
+        setupHLSEvents() {
+          if (!this.hls) return;
+
+          // 播放列表加载成功
+          this.hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+            console.log("HLS播放列表解析成功:", data);
+            console.log("可用质量等级:", data.levels.length);
+
+            // 显示缓存状态
+            this.showBufferStatus();
+          });
+
+          // 片段开始加载
+          this.hls.on(Hls.Events.FRAG_LOADING, (event, data) => {
+            console.log("开始加载片段:", data.frag.sn, "地址:", data.frag.url);
+          });
+
+          // 片段加载完成
+          this.hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+            console.log(
+              "片段加载完成:",
+              data.frag.sn,
+              "耗时:",
+              data.stats.loading.total + "ms"
+            );
+            this.updateBufferInfo();
+          });
+
+          // 片段解析完成并添加到缓存
+          this.hls.on(Hls.Events.FRAG_PARSED, (event, data) => {
+            console.log("片段解析完成:", data.frag.sn);
+            this.updateBufferInfo();
+          });
+
+          // 质量等级切换
+          this.hls.on(Hls.Events.LEVEL_SWITCHING, (event, data) => {
+            console.log("质量等级切换到:", data.level);
+          });
+
+          // 缓存状态更新
+          this.hls.on(Hls.Events.BUFFER_APPENDED, (event, data) => {
+            this.updateBufferInfo();
+          });
+
+          // 错误处理
+          this.hls.on(Hls.Events.ERROR, (event, data) => {
+            console.error("HLS错误:", data);
+
+            if (data.fatal) {
+              switch (data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  console.log("网络错误，尝试恢复...");
+                  this.hls.startLoad();
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  console.log("媒体错误，尝试恢复...");
+                  this.hls.recoverMediaError();
+                  break;
+                default:
+                  console.log("无法恢复的错误");
+                  alert("视频播放出现错误，请刷新页面重试");
+                  break;
+              }
+            }
+          });
+
+          // 缓存清理事件
+          this.hls.on(Hls.Events.BUFFER_FLUSHED, (event, data) => {
+            console.log("缓存已清理:", data);
+          });
+        }
+
+        updateBufferInfo() {
+          if (!this.video.buffered || this.video.buffered.length === 0) return;
+
+          const currentTime = this.video.currentTime;
+          const buffered = this.video.buffered;
+          let bufferEnd = 0;
+
+          // 找到当前时间点的缓存结束位置
+          for (let i = 0; i < buffered.length; i++) {
+            if (
+              buffered.start(i) <= currentTime &&
+              buffered.end(i) > currentTime
+            ) {
+              bufferEnd = buffered.end(i);
+              break;
+            }
+          }
+
+          const bufferLength = bufferEnd - currentTime;
+          console.log(
+            `缓存状态: 当前${currentTime.toFixed(
+              2
+            )}s, 缓存到${bufferEnd.toFixed(2)}s, 缓存长度${bufferLength.toFixed(
+              2
+            )}s`
+          );
+
+          // 动态调整缓存策略
+          this.optimizeBufferStrategy(bufferLength);
+        }
+
+        optimizeBufferStrategy(bufferLength) {
+          if (!this.hls) return;
+
+          // 根据缓存长度动态调整策略
+          if (bufferLength < 10) {
+            // 缓存不足，增加缓存
+            console.log("缓存不足，增加预加载");
+            this.hls.config.maxBufferLength = Math.min(
+              45,
+              this.hls.config.maxBufferLength + 5
+            );
+          } else if (bufferLength > 40) {
+            // 缓存过多，减少缓存以节省内存
+            console.log("缓存充足，优化内存使用");
+            this.hls.config.maxBufferLength = Math.max(
+              20,
+              this.hls.config.maxBufferLength - 5
+            );
+          }
+
+          // 网络状态自适应
+          this.adaptToNetworkConditions();
+        }
+
+        adaptToNetworkConditions() {
+          if (!this.hls) return;
+
+          // 获取网络连接信息（如果支持）
+          const connection =
+            navigator.connection ||
+            navigator.mozConnection ||
+            navigator.webkitConnection;
+
+          if (connection) {
+            const effectiveType = connection.effectiveType;
+            console.log("网络类型:", effectiveType);
+
+            // 根据网络状况调整缓存策略
+            switch (effectiveType) {
+              case "slow-2g":
+              case "2g":
+                this.hls.config.maxBufferLength = 60; // 增加缓存
+                this.hls.config.maxBufferHole = 1.0; // 容忍更大的缓存空洞
+                break;
+              case "3g":
+                this.hls.config.maxBufferLength = 40;
+                this.hls.config.maxBufferHole = 0.8;
+                break;
+              case "4g":
+              default:
+                this.hls.config.maxBufferLength = 30;
+                this.hls.config.maxBufferHole = 0.5;
+                break;
+            }
+          }
+        }
+
+        showBufferStatus() {
+          // 可以在界面上显示缓存状态
+          const statusElement = document.createElement("div");
+          statusElement.id = "buffer-status";
+          statusElement.style.cssText = `
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    z-index: 1000;
+                    pointer-events: none;
+                `;
+          statusElement.textContent = "缓存状态: 准备中...";
+
+          this.danmuContainer.appendChild(statusElement);
+
+          // 定期更新缓存状态显示
+          this.bufferStatusInterval = setInterval(() => {
+            this.updateBufferStatusDisplay();
+          }, 2000);
+        }
+
+        updateBufferStatusDisplay() {
+          const statusElement = document.getElementById("buffer-status");
+          if (
+            !statusElement ||
+            !this.video.buffered ||
+            this.video.buffered.length === 0
+          )
+            return;
+
+          const currentTime = this.video.currentTime;
+          const buffered = this.video.buffered;
+          let bufferEnd = 0;
+
+          for (let i = 0; i < buffered.length; i++) {
+            if (
+              buffered.start(i) <= currentTime &&
+              buffered.end(i) > currentTime
+            ) {
+              bufferEnd = buffered.end(i);
+              break;
+            }
+          }
+
+          const bufferLength = bufferEnd - currentTime;
+          statusElement.textContent = `缓存: ${bufferLength.toFixed(1)}s`;
+
+          // 根据缓存状态设置颜色
+          if (bufferLength < 5) {
+            statusElement.style.background = "rgba(255, 0, 0, 0.7)"; // 红色警告
+          } else if (bufferLength < 15) {
+            statusElement.style.background = "rgba(255, 165, 0, 0.7)"; // 橙色注意
+          } else {
+            statusElement.style.background = "rgba(0, 128, 0, 0.7)"; // 绿色正常
+          }
+        }
+      }
+
+      // 页面加载完成后初始化
+      document.addEventListener("DOMContentLoaded", () => {
+        new DanmuPlayer();
+      });
+    </script>
+  </body>
+</html>

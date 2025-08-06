@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video.js M3U8 播放器</title>
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .video-container {
+            margin: 20px 0;
+        }
+        .video-js {
+            width: 100%;
+            height: 500px;
+        }
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .url-input {
+            width: 60%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .preset-urls {
+            margin-top: 20px;
+        }
+        .preset-urls h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .preset-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #e9ecef;
+        }
+        .preset-item:hover {
+            background-color: #e9ecef;
+        }
+        .preset-item strong {
+            color: #007bff;
+        }
+        
+        /* 隐藏video.js默认的loading样式 */
+        .video-js .vjs-loading-spinner,
+        .video-js .vjs-loading-spinner:before,
+        .video-js .vjs-loading-spinner:after {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Video.js M3U8 播放器</h1>
+        
+        <div class="video-container">
+            <video
+                id="my-video"
+                class="video-js vjs-default-skin"
+                controls
+                preload="auto"
+                data-setup="{}">
+                <p class="vjs-no-js">
+                    要观看此视频，请启用 JavaScript，并考虑升级到
+                    <a href="https://videojs.com/html5-video-support/" target="_blank">
+                        支持HTML5视频的浏览器
+                    </a>
+                </p>
+            </video>
+        </div>
+
+        <div class="controls">
+            <input 
+                type="text" 
+                id="videoUrl" 
+                class="url-input" 
+                placeholder="输入 M3U8 视频链接..."
+                value="./vid.m3u8"
+            >
+            <button id="loadVideo" class="btn">加载视频</button>
+            <button id="playVideo" class="btn">播放</button>
+            <button id="pauseVideo" class="btn">暂停</button>
+        </div>
+
+        <div class="preset-urls">
+            <h3>预设视频链接：</h3>
+            <div class="preset-item" data-url="./vid.m3u8">
+                <strong>本地测试视频：</strong> ./vid.m3u8
+            </div>
+            <div class="preset-item" data-url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8">
+                <strong>测试流1：</strong> Mux 测试流（高质量）
+            </div>
+            <div class="preset-item" data-url="https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8">
+                <strong>测试流2：</strong> Tears of Steel 演示
+            </div>
+        </div>
+
+        <div class="info">
+            <h3>使用说明：</h3>
+            <ul>
+                <li>支持播放 M3U8 (HLS) 格式的视频流</li>
+                <li>可以输入自定义的 M3U8 链接</li>
+                <li>支持自适应码率播放</li>
+                <li>内置播放控制功能</li>
+                <li>点击预设链接快速加载测试视频</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Video.js JavaScript -->
+    <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
+    <!-- videojs-contrib-hls for HLS support -->
+    <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.2/dist/videojs-http-streaming.min.js"></script>
+    
+    <script>
+        // 初始化 Video.js 播放器
+        const player = videojs('my-video', {
+            fluid: true,
+            responsive: true,
+            html5: {
+                hls: {
+                    enableLowInitialPlaylist: true,
+                    smoothQualityChange: true,
+                    overrideNative: true
+                }
+            },
+            playbackRates: [0.5, 1, 1.25, 1.5, 2],
+            controls: true,
+            preload: 'auto'
+        });
+
+        // 加载视频函数
+        function loadVideo(url) {
+            if (!url || url.trim() === '') {
+                alert('请输入有效的视频链接！');
+                return;
+            }
+
+            console.log('正在加载视频：', url);
+            
+            // 重置播放器
+            player.ready(() => {
+                player.src({
+                    src: 'https://record-api.huohua.cn/content/CR230717049703/stream/teacher/desktop.m3u8',
+                    type: 'application/x-mpegURL'
+                });
+                
+                // 监听加载事件
+                player.on('loadstart', () => {
+                    console.log('开始加载视频');
+                });
+                
+                player.on('canplay', () => {
+                    console.log('视频可以播放');
+                });
+                
+                player.on('error', (error) => {
+                    console.error('播放器错误：', error);
+                    alert('视频加载失败，请检查链接是否有效！');
+                });
+            });
+        }
+
+        // 按钮事件监听
+        document.getElementById('loadVideo').addEventListener('click', () => {
+            const url = document.getElementById('videoUrl').value;
+            loadVideo(url);
+        });
+
+        document.getElementById('playVideo').addEventListener('click', () => {
+            player.play();
+        });
+
+        document.getElementById('pauseVideo').addEventListener('click', () => {
+            player.pause();
+        });
+
+        // 预设链接点击事件
+        document.querySelectorAll('.preset-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const url = item.dataset.url;
+                document.getElementById('videoUrl').value = url;
+                loadVideo(url);
+            });
+        });
+
+        // 页面加载完成后自动加载默认视频
+        document.addEventListener('DOMContentLoaded', () => {
+            const defaultUrl = './vid.m3u8';
+            loadVideo(defaultUrl);
+        });
+
+        // 播放器事件监听
+        player.ready(() => {
+            console.log('Video.js 播放器已准备就绪');
+            
+            // 监听播放事件
+            player.on('play', () => {
+                console.log('视频开始播放');
+            });
+            
+            player.on('pause', () => {
+                console.log('视频暂停');
+            });
+            
+            player.on('ended', () => {
+                console.log('视频播放结束');
+            });
+            
+            player.on('timeupdate', () => {
+                // 可以在这里添加播放进度相关的逻辑
+            });
+        });
+    </script>
+</body>
+</html>
